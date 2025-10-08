@@ -1,0 +1,2 @@
+{"trace_id":"9b4fcafcfb70d7c80b381ab58446cfd6","ts":"2025-10-04T03:48:36.565010048Z","caller":"agent","tool":"echo","decision":"deny","reason":["opa_unreachable"],"status":403}
+{"trace_id":"99fe697471267dc42999425e60bf02da","ts":"2025-10-04T03:50:36.725208839Z","caller":"agent","tool":"echo","decision":"allow","status":200}

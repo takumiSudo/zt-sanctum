@@ -1,0 +1,37 @@
+version: "3.9"
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    environment:
+      - OPA_URL=http://opa:8181/v1/data/mcp/authz
+      - BACKEND_URL=http://echo:8081/echo
+      - AUDIT_PATH=/var/log/zt-gateway/audit.jsonl
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./certs:/certs:ro
+      - ./logs:/var/log/zt-gateway
+    depends_on:
+      - echo
+      - opa
+
+  echo:
+    build:
+      context: ./tools/echo
+      dockerfile: Dockerfile.echo
+    ports:
+      - "8081:8081"
+
+  opa:
+      image: openpolicyagent/opa:latest
+      command:
+        - "run"
+        - "--server"
+        - "--addr=0.0.0.0:8181"
+        - "/policy"
+      volumes:
+        - ./policy:/policy:ro
+      ports:
+        - "8181:8181"

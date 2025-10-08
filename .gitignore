@@ -1,0 +1,18 @@
+
+# macOS
+.DS_Store
+
+# Go build outputs
+bin/
+dist/
+*.test
+
+# Certificates (dev-only; never commit)
+certs/
+
+# Docker logs
+*.log
+
+# Editors
+.vscode/
+.idea/
