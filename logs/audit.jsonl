@@ -1,2 +1,6 @@
 {"trace_id":"9b4fcafcfb70d7c80b381ab58446cfd6","ts":"2025-10-04T03:48:36.565010048Z","caller":"agent","tool":"echo","decision":"deny","reason":["opa_unreachable"],"status":403}
 {"trace_id":"99fe697471267dc42999425e60bf02da","ts":"2025-10-04T03:50:36.725208839Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"72d065dae85493b6c1ad4e91260beb70","ts":"2025-10-09T01:32:34.845652756Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_unknown_caller_pubkey"],"status":403}
+{"trace_id":"4a701631c6e8ce98ad8fec344a07ab8c","ts":"2025-10-09T01:33:13.632446552Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"afe59693b3c43d3b1cbee467062ab262","ts":"2025-10-09T01:34:55.687283168Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"a8ae0843ffab36d9512da51ac516abe6","ts":"2025-10-09T01:35:21.395179722Z","caller":"agent","tool":"echo","decision":"allow","status":200}

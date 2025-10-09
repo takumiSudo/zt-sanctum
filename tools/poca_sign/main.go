@@ -1,7 +1,7 @@
 package main
 import (
-	"bytes"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -32,6 +32,14 @@ func main() {
 
 	// payload hash
 	h := sha256.Sum256([]byte(*body))
+
+	// cryptographically random nonce (16 bytes)
+	nb := make([]byte, 16)
+	if _, err := rand.Read(nb); err != nil {
+		panic(err)
+	}
+	nonce := hex.EncodeToString(nb)
+
 	man := map[string]any{
 		"ver":"poca-1",
 		"caller_id":*caller,
@@ -39,7 +47,7 @@ func main() {
 		"intent":*intent,
 		"scopes":[]string{"read"},
 		"payload_sha256": hex.EncodeToString(h[:]),
-		"nonce": hex.EncodeToString(h[:8]), // quick demo nonce
+		"nonce": nonce,
 		"exp": time.Now().UTC().Add(time.Duration(*expMin)*time.Minute).Format(time.RFC3339),
 	}
 	js, _ := json.Marshal(man)
