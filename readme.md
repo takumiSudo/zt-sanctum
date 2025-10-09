@@ -1,4 +1,6 @@
 
+![img](resources/SanctumLogo.png)
+
 # zt-sanctum
 
 A minimal Zero-Trust (ZT) gateway with PoCA (Proof-of-Context Access) and OPA policy checks.
