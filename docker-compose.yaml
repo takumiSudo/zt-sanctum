@@ -8,11 +8,14 @@ services:
       - OPA_URL=http://opa:8181/v1/data/mcp/authz
       - BACKEND_URL=http://echo:8081/echo
       - AUDIT_PATH=/var/log/zt-gateway/audit.jsonl
+      - POCA_REQUIRED = true
+      - POCA_AGENTS_PATH =/app/pki/agents.yaml
     ports:
       - "8443:8443"
     volumes:
       - ./certs:/certs:ro
       - ./logs:/var/log/zt-gateway
+      - ./pki:/app/pki:ro
     depends_on:
       - echo
       - opa

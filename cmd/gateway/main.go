@@ -13,10 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"crypto/sha256"
-	"encoding/hex"
-	"strings"
-	"gopkg.in/yaml.v3" // (indirect through pki package fetch)
+
 	"zerotrust/internal/pki"
 	"zerotrust/internal/poca"
 )
@@ -61,7 +58,11 @@ func main() {
 
 	// ---------- HTTP mux ----------
 	mux := http.NewServeMux()
-
+	agents := poca.NewAgents()
+	if err := pki.LoadAgentsYAML(pocaAgentsPath, agents.Set, poca.LoadEd25519PubkeyB64); err != nil {
+		log.Fatalf("failed loading agents.yaml: %v", err)
+	}
+	nonces := poca.NewNonceCache(nonceTTL)
 	// 1) Health endpoint
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -109,8 +110,29 @@ func main() {
 			return
 		}
 
+		// --- PoCA verification ---
+		headers := map[string]string{
+			"X-PoCA-Manifest":  r.Header.Get("X-PoCA-Manifest"),
+			"X-PoCA-Signature": r.Header.Get("X-PoCA-Signature"),
+		}
+		pocaRes := poca.Verify(headers, body, caller, "echo", agents, nonces, time.Now().UTC(), clockSkew)
+		if !pocaRes.OK {
+			if pocaRequired {
+				writeAudit(auditPath, AuditLog{
+					TraceID:  traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
+					Caller: caller, Tool: "echo", Decision: "deny",
+					Reason: append([]string{"poca_failed"}, pocaRes.Reasons...),
+					Status: http.StatusForbidden,
+				})
+				http.Error(w, "forbidden by PoCA", http.StatusForbidden)
+				return
+			}
+			// Not required: continue but mark unverified
+		}
+
 		// ---------- PDP (OPA) check ----------
-		allowed, reasons := checkOPA(opaURL, caller, "echo", opaTimeout, traceID)
+		allowed, reasons := checkOPA(opaURL, caller, "echo", opaTimeout, traceID, pocaRes.Verified)
+		// allowed, reasons := checkOPA(opaURL, caller, "echo", opaTimeout, traceID)
 		if !allowed {
 			writeAudit(auditPath, AuditLog{
 				TraceID:  traceID,
@@ -218,13 +240,13 @@ func getenv(key, def string) string {
 }
 
 // checkOPA calls the OPA data API and returns (allowed, reasons)
-func checkOPA(opaURL, caller, tool string, timeout time.Duration, traceID string) (bool, []string) {
+func checkOPA(opaURL, caller, tool string, timeout time.Duration, traceID string, pocaVerified bool) (bool, []string) {
 	input := map[string]any{
 		"input": map[string]any{
-			"caller": caller,
-			"tool":   tool,
-			// you can enrich this later (env, fields, schema_id, etc.)
-			"trace_id": traceID,
+			"caller":        caller,
+			"tool":          tool,
+			"trace_id":      traceID,
+			"poca_verified": pocaVerified,
 		},
 	}
 	b, _ := json.Marshal(input)
