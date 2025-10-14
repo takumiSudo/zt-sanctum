@@ -12,6 +12,7 @@ certs/
 
 # Docker logs
 *.log
+logs/*
 
 # Editors
 .vscode/

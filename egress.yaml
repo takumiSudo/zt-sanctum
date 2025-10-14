@@ -1,0 +1,4 @@
+default: deny
+allow:
+  - name: echo
+    url: http://echo:8081/echo

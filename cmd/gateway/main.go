@@ -16,6 +16,7 @@ import (
 
 	"zerotrust/internal/pki"
 	"zerotrust/internal/poca"
+	"zerotrust/internal/egress"
 )
 
 type AuditLog struct {
@@ -41,6 +42,11 @@ func main() {
 	pocaAgentsPath := getenv("POCA_AGENTS_PATH", "/app/pki/agents.yaml")
 	nonceTTL := 5 * time.Minute
 	clockSkew := 60 * time.Second
+	egressPath := getenv("EGRESS_CONFIG_PATH", "/app/egress.yaml")
+	egCfg, err := egress.Load(egressPath)
+	if err != nil {
+		log.Fatalf("failed to load egress config: %v", err)
+	}
 
 	// ---------- mTLS trust (client auth) ----------
 	caCert, err := os.ReadFile("/certs/ca.crt")
@@ -148,6 +154,21 @@ func main() {
 		}
 
 		// ---------- Relay to backend ----------
+		// Egress deny-by-default: ensure backendURL is allowlisted
+		if !egCfg.IsAllowed(backendURL) {
+			writeAudit(auditPath, AuditLog{
+				TraceID:  traceID,
+				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
+				Caller:   caller,
+				Tool:     "echo",
+				Decision: "deny",
+				Reason:   []string{"egress_denied"},
+				Status:   http.StatusForbidden,
+			})
+			http.Error(w, "forbidden: egress denied", http.StatusForbidden)
+			return
+		}
+
 		req, err := http.NewRequest(http.MethodPost, backendURL, bytes.NewReader(body))
 		if err != nil {
 			writeAudit(auditPath, AuditLog{

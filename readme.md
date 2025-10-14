@@ -34,19 +34,19 @@ sequenceDiagram
 ```
 
 ## Components
-	•	Gateway (Go)
-	•	GET /healthz
-	•	POST /relay (PEP): mTLS client auth, PoCA verification, OPA query, body size cap (2 MiB), upstream timeout (5s), audit JSONL.
-	•	OPA (PDP)
-	•	Evaluates Rego policy on { caller, tool, poca_verified, trace_id }.
-	•	Echo Tool (Go)
-	•	/healthz, /echo (echoes JSON or text; 1 MiB cap, POST-only).
-	•	PoCA Signer (Go helper)
-	•	Emits X-PoCA-Manifest + X-PoCA-Signature for a given payload.
-	•	PKI / PoCA Keys
-	•	mTLS CA/server/client certs; Ed25519 public key(s) for PoCA verification.
-	•	Audit
-	•	Line-delimited JSON at logs/audit.jsonl + stdout.
+- Gateway (Go)
+- GET /healthz
+- POST /relay (PEP): mTLS client auth, PoCA verification, OPA query, body size cap (2 MiB), upstream timeout (5s), audit JSONL.
+- OPA (PDP)
+- Evaluates Rego policy on { caller, tool, poca_verified, trace_id }.
+- Echo Tool (Go)
+- /healthz, /echo (echoes JSON or text; 1 MiB cap, POST-only).
+- PoCA Signer (Go helper)
+- Emits X-PoCA-Manifest + X-PoCA-Signature for a given payload.
+- PKI / PoCA Keys
+- mTLS CA/server/client certs; Ed25519 public key(s) for PoCA verification.
+- Audit
+- Line-delimited JSON at logs/audit.jsonl + stdout.
 
 ## Repository layout
 
@@ -196,11 +196,11 @@ tail -n 20 logs/audit.jsonl
 Each entry includes: trace_id, ts, caller, tool, decision, status, optional reason.
 
 🔐 Security model (current)
-	•	Identity: mTLS client certs (CN → caller).
-	•	Integrity (PoCA-lite): Ed25519 signature over the base64url-encoded manifest; payload SHA-256 matches body; nonce replay protection; expiry enforced.
-	•	Authorization: OPA Rego rules (ABAC) on {caller, tool, poca_verified, trace_id}.
-	•	Safety: Request body cap (2 MiB), upstream timeout (5s), OPA timeout (3s).
-	•	Audit: Structured JSONL + stdout.
+- Identity: mTLS client certs (CN → caller).
+- Integrity (PoCA-lite): Ed25519 signature over the base64url-encoded manifest; payload SHA-256 matches body; nonce replay protection; expiry enforced.
+- Authorization: OPA Rego rules (ABAC) on {caller, tool, poca_verified, trace_id}.
+- Safety: Request body cap (2 MiB), upstream timeout (5s), OPA timeout (3s).
+- Audit: Structured JSONL + stdout.
 
 ## Configuration
 
@@ -214,20 +214,20 @@ POCA_REQUIRED	true	If true, reject requests without valid PoCA
 POCA_AGENTS_PATH	/app/pki/agents.yaml	Agents public keys mapping
 
 Volumes in docker-compose.yaml:
-	•	./certs:/certs:ro
-	•	./policy:/policy:ro
-	•	./logs:/var/log/zt-gateway
-	•	./pki:/app/pki:ro
+- ./certs:/certs:ro
+- ./policy:/policy:ro
+- ./logs:/var/log/zt-gateway
+- ./pki:/app/pki:ro
 
 ## Troubleshooting
-	•	403 “forbidden by PoCA”:
+- 403 “forbidden by PoCA”:
 Check logs/audit.jsonl for reason:
-	•	poca_unknown_caller_pubkey → fix pki/agents.yaml and restart gateway.
-	•	poca_payload_hash_mismatch → regenerate headers after finalizing the body.
-	•	poca_replay → regenerate (new random nonce each request).
-	•	poca_expired → increase -expmin when signing.
-	•	poca_sig_invalid / poca_manifest_b64_decode → ensure headers are unmodified.
-	•	OPA denies but PoCA passes:
+- poca_unknown_caller_pubkey → fix pki/agents.yaml and restart gateway.
+- poca_payload_hash_mismatch → regenerate headers after finalizing the body.
+- poca_replay → regenerate (new random nonce each request).
+- poca_expired → increase -expmin when signing.
+- poca_sig_invalid / poca_manifest_b64_decode → ensure headers are unmodified.
+- OPA denies but PoCA passes:
 Tail OPA logs and verify policy. Test directly:
 
 ```
@@ -236,9 +236,9 @@ curl -s http://localhost:8181/v1/data/mcp/authz \
   -d '{"input":{"caller":"agent","tool":"echo","poca_verified":true}}'
 ```
 
-	•	Docker platform warning (Apple Silicon):
+- Docker platform warning (Apple Silicon):
 Set platform: linux/arm64 for the opa service.
-	•	zsh parse errors:
+- zsh parse errors:
 Avoid adding comments to lines that end with \. Keep comments on separate lines.
 
 ## Roadmap 

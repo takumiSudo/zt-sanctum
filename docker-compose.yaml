@@ -10,12 +10,14 @@ services:
       - AUDIT_PATH=/var/log/zt-gateway/audit.jsonl
       - POCA_REQUIRED = true
       - POCA_AGENTS_PATH =/app/pki/agents.yaml
+      - EGRESS_CONFIG_PATH=/app/egress.yaml
     ports:
       - "8443:8443"
     volumes:
       - ./certs:/certs:ro
       - ./logs:/var/log/zt-gateway
       - ./pki:/app/pki:ro
+      - ./egress.yaml:/app/egress.yaml:ro
     depends_on:
       - echo
       - opa
