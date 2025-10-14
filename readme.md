@@ -241,7 +241,7 @@ Set platform: linux/arm64 for the opa service.
 	•	zsh parse errors:
 Avoid adding comments to lines that end with \. Keep comments on separate lines.
 
-## Roadmap (suggested next steps)
+## Roadmap 
 	1.	Egress allowlist (deny-by-default) — YAML of allowed upstreams (+ optional TLS pin/SPIFFE ID).
 	2.	Request JSON-Schema — validate input per tool; pass schema_id to OPA.
 	3.	Tamper-evident audit — add prev_hash and record_hash to chain entries.
