@@ -13,10 +13,12 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"strings"
 
 	"zerotrust/internal/pki"
 	"zerotrust/internal/poca"
 	"zerotrust/internal/egress"
+	"zerotrust/internal/contracts"
 )
 
 type AuditLog struct {
@@ -46,6 +48,15 @@ func main() {
 	egCfg, err := egress.Load(egressPath)
 	if err != nil {
 		log.Fatalf("failed to load egress config: %v", err)
+	}
+	schemaEchoPath := getenv("SCHEMA_ECHO_PATH", "/app/contracts/echo.v1.json")
+	echoContract, err := contracts.Load(schemaEchoPath)
+	if err != nil {
+		log.Fatalf("failed to load echo schema: %v", err)
+	}
+	schemaIDEcho := echoContract.ID
+	if schemaIDEcho == "" {
+		schemaIDEcho = "echo.v1" // fallback if $id missing
 	}
 
 	// ---------- mTLS trust (client auth) ----------
@@ -135,9 +146,47 @@ func main() {
 			}
 			// Not required: continue but mark unverified
 		}
+		// ---- JSON-Schema validation (request) ----
+		// Only enforce schema when caller explicitly opts into this contract via header.
+		// This avoids rejecting valid non-contract JSON payloads used by some tests.
+		ct := r.Header.Get("Content-Type")
+		if strings.HasPrefix(strings.ToLower(ct), "application/json") {
+			var js any
+			if err := json.Unmarshal(body, &js); err != nil {
+				writeAudit(auditPath, AuditLog{
+					TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
+					Caller: caller, Tool: "echo", Decision: "deny",
+					Reason: []string{"schema_request_invalid", "json_parse_error"},
+					Status: http.StatusBadRequest,
+				})
+				http.Error(w, "invalid json", http.StatusBadRequest)
+				return
+			}
 
+			contractID := r.Header.Get("X-Contract-ID")
+			if contractID == schemaIDEcho {
+				if err := echoContract.Schema.Validate(bytes.NewReader(body)); err != nil {
+					log.Printf("schema validation failed: %v; body=%s", err, string(body))
+					writeAudit(auditPath, AuditLog{
+						TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
+						Caller: caller, Tool: "echo", Decision: "deny",
+						Reason: []string{"schema_request_invalid"},
+						Status: http.StatusUnprocessableEntity,
+					})
+					http.Error(w, "invalid request schema", http.StatusUnprocessableEntity)
+					return
+				}
+			}
+		}
 		// ---------- PDP (OPA) check ----------
-		allowed, reasons := checkOPA(opaURL, caller, "echo", opaTimeout, traceID, pocaRes.Verified)
+		var allowed bool
+		var reasons []string
+		// Determine which schema ID (if any) should be conveyed to OPA
+		sentSchemaID := r.Header.Get("X-Contract-ID")
+		if sentSchemaID == "" {
+			sentSchemaID = schemaIDEcho // fall back to known echo contract id
+		}
+		allowed, reasons = checkOPA(opaURL, caller, "echo", opaTimeout, traceID, pocaRes.Verified, sentSchemaID)
 		// allowed, reasons := checkOPA(opaURL, caller, "echo", opaTimeout, traceID)
 		if !allowed {
 			writeAudit(auditPath, AuditLog{
@@ -183,7 +232,7 @@ func main() {
 			http.Error(w, "failed to build backend request", http.StatusInternalServerError)
 			return
 		}
-		ct := r.Header.Get("Content-Type")
+		ct = r.Header.Get("Content-Type")
 		if ct == "" {
 			ct = "application/json"
 		}
@@ -261,36 +310,36 @@ func getenv(key, def string) string {
 }
 
 // checkOPA calls the OPA data API and returns (allowed, reasons)
-func checkOPA(opaURL, caller, tool string, timeout time.Duration, traceID string, pocaVerified bool) (bool, []string) {
-	input := map[string]any{
-		"input": map[string]any{
-			"caller":        caller,
-			"tool":          tool,
-			"trace_id":      traceID,
-			"poca_verified": pocaVerified,
-		},
-	}
-	b, _ := json.Marshal(input)
+func checkOPA(opaURL, caller, tool string, timeout time.Duration, traceID string, pocaVerified bool, schemaID string) (bool, []string) {
+    input := map[string]any{
+        "input": map[string]any{
+            "caller":        caller,
+            "tool":          tool,
+            "trace_id":      traceID,
+            "poca_verified": pocaVerified,
+            "schema_id":     schemaID,    // <<—— add this
+        },
+    }
+    b, _ := json.Marshal(input)
 
-	client := &http.Client{Timeout: timeout}
-	resp, err := client.Post(opaURL, "application/json", bytes.NewReader(b))
-	if err != nil {
-		// Fail closed on OPA errors
-		return false, []string{"opa_unreachable"}
-	}
-	defer resp.Body.Close()
+    client := &http.Client{Timeout: timeout}
+    resp, err := client.Post(opaURL, "application/json", bytes.NewReader(b))
+    if err != nil {
+        return false, []string{"opa_unreachable"}
+    }
+    defer resp.Body.Close()
 
-	var out struct {
-		Result struct {
-			Allow  bool     `json:"allow"`
-			Reason []string `json:"reason"`
-		} `json:"result"`
-	}
-	body, _ := io.ReadAll(resp.Body)
-	if err := json.Unmarshal(body, &out); err != nil {
-		return false, []string{"opa_bad_response"}
-	}
-	return out.Result.Allow, out.Result.Reason
+    var out struct {
+        Result struct {
+            Allow  bool     `json:"allow"`
+            Reason []string `json:"reason"`
+        } `json:"result"`
+    }
+    body, _ := io.ReadAll(resp.Body)
+    if err := json.Unmarshal(body, &out); err != nil {
+        return false, []string{"opa_bad_response"}
+    }
+    return out.Result.Allow, out.Result.Reason
 }
 
 // newTraceID returns a 16-byte hex string

@@ -18,3 +18,126 @@
 {"trace_id":"ed1ee596c1348a42090062abe3b400d2","ts":"2025-10-14T00:38:13.908330633Z","caller":"agent","tool":"echo","decision":"allow","status":200}
 {"trace_id":"abcc547bdd21f4a25aa4164237fc0cf2","ts":"2025-10-14T00:39:39.155900756Z","caller":"agent","tool":"echo","decision":"allow","status":200}
 {"trace_id":"9d9d085a06609d91235f030a3f79d348","ts":"2025-10-14T00:49:05.204205587Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"10770d570ef59b88d2455c84c509d3d6","ts":"2025-10-14T01:12:03.601150586Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"c85a318282742dee873e716436f2b390","ts":"2025-10-14T01:12:25.815414555Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"e9e7dac62de05133c0870443a406a70b","ts":"2025-10-14T01:19:59.591576001Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"f186f770e9fc058e1e26c2cbc6ab7910","ts":"2025-10-14T01:26:28.955330917Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"3dd17fe34cf3fcc99d34ec7d6edfbcb4","ts":"2025-10-14T01:26:28.993152292Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"3ea4b0fc8c2ceed9b165dcf6d054a86e","ts":"2025-10-14T01:26:29.055347459Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"31172f6ee287801fe09c037713ebea9a","ts":"2025-10-14T01:26:29.133971959Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"5439483eb069a6af344de042a1fa3120","ts":"2025-10-14T01:26:29.175573334Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"1db0313962ea10ae05667963b222eac5","ts":"2025-10-14T01:26:29.247045501Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"d818b1a6d723bd8e5c19a0c680db258c","ts":"2025-10-14T01:26:30.639941585Z","caller":"agent","tool":"echo","decision":"deny","reason":["egress_denied"],"status":403}
+{"trace_id":"5017215aa04c2811d83aa3c9e48a8fc2","ts":"2025-10-14T02:18:44.466780632Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"0e09f6ad78f8e2d9654f54f91c8f8685","ts":"2025-10-14T02:18:44.507920049Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"1f00fab6b9f3594399db94ab26801d67","ts":"2025-10-14T02:18:44.558601841Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"eda84bec3d5ce3fe2730b9719b177d15","ts":"2025-10-14T02:18:44.607604466Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"b3f4407dd526ea3671a372ae053ced81","ts":"2025-10-14T02:18:44.643355507Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"bddecfe990e5fd0800b32e45ac589aec","ts":"2025-10-14T02:18:44.689818132Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"6f83f8437191ef1a4e33246575c5b91e","ts":"2025-10-14T02:18:46.04027255Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"4dc9ba7c9b2ffac71624d861135cea08","ts":"2025-10-14T02:24:41.558554797Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"33796161cdb7179f1f1cc35fbf3ec554","ts":"2025-10-14T02:24:41.597815589Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"b95af82a9037034923d0115809e479e4","ts":"2025-10-14T02:24:41.643061256Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"ff3a0bdaed777e729ad0708fcca5f824","ts":"2025-10-14T02:24:41.694478464Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"31ae0846711db704955791f3b703378b","ts":"2025-10-14T02:24:41.737901172Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"fbd8c94da451a0810b9c7e3927ba5a94","ts":"2025-10-14T02:24:41.786817839Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"f5abbb16f3aa1f924f12b9e32da4903f","ts":"2025-10-14T02:24:43.132681548Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"fe9caea5e3c55bf0117a839598d38a9e","ts":"2025-10-14T02:25:08.354871921Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"0dd1c421016240cb8f69baeabbbe92e4","ts":"2025-10-14T02:25:08.397744421Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"2b402a3f9d25b01cef7f581752d6b2cb","ts":"2025-10-14T02:25:08.448706754Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"bb96e7908b608be26a47a4a6efbd1bdc","ts":"2025-10-14T02:25:08.502287921Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"1f3c8c8c5636f7cd73edc49acebea06e","ts":"2025-10-14T02:25:08.540133629Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"c5ea487a3db1076877f3a9ce671b5d66","ts":"2025-10-14T02:25:08.588411379Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"a2262ee3281e8546fd7ca9b10928c0ff","ts":"2025-10-14T02:25:09.915585338Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"30ba5cf19799b008299c80fdb92d6b81","ts":"2025-10-14T02:25:49.193111259Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"7c2de2882c30050fe092bbc2e53130cc","ts":"2025-10-14T02:25:49.240028176Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"6aadc7551481cb8ea497c058147ffd2b","ts":"2025-10-14T02:25:49.288137134Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"c86ced7f4c30ca1905fe28c1a734e804","ts":"2025-10-14T02:25:49.338901801Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"1f4296dc9d5701a7198105a05c833f5a","ts":"2025-10-14T02:25:49.387521009Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"3341fe71699b2239938acbffc6f93879","ts":"2025-10-14T02:25:49.464069384Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"66835824e3cc54cf7486b1bbdc51937d","ts":"2025-10-14T02:25:50.853883427Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"f0a94603abae9b75d22f618df176536e","ts":"2025-10-14T02:26:05.905904503Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"7d3f429b9577df23e8f7b97e94640f04","ts":"2025-10-14T02:26:05.95379542Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"ecf4cdf88c7a9cf3a7430371a4e48423","ts":"2025-10-14T02:26:06.010881336Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"57737e3fe6c2d7469539c5a004f4a537","ts":"2025-10-14T02:26:06.06071817Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"90e152f639bdcfaa020ffb06b56e210e","ts":"2025-10-14T02:26:06.108837336Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"5e5db1d88d2d4b773efe5f59b4107aa8","ts":"2025-10-14T02:26:06.155583336Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"2b9dc072caeab4ab45cd54d8d488c94c","ts":"2025-10-14T02:26:07.524148712Z","caller":"agent","tool":"echo","decision":"deny","reason":["not allowed"],"status":403}
+{"trace_id":"000cd31a3011c1874ca35f725f63036c","ts":"2025-10-14T02:31:51.376448344Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"30cd518815a582cd53e06dd2eb2d29b3","ts":"2025-10-14T02:31:51.41653451Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"2e62616b3b0231e546b200b880e1e52e","ts":"2025-10-14T02:31:51.467997135Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"1103321f4ba4cc3b60757d9009fc343b","ts":"2025-10-14T02:31:51.512736677Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"ee897791f4e7659c4320218d86af8987","ts":"2025-10-14T02:31:51.549320177Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"98f077b93f454c16ae948111f1760847","ts":"2025-10-14T02:31:51.600288385Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"f9ed81b34879a483e104eb1365a84e73","ts":"2025-10-14T02:31:52.987346969Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"5bf380d4f5170a7a1ca29191562bb50e","ts":"2025-10-14T02:34:11.613075839Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"44ab52044159730e0fc2cf8422dcce72","ts":"2025-10-14T02:34:11.662268381Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"ee4d5ec5b4608ff8761546e444f78c4b","ts":"2025-10-14T02:34:11.709777339Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"6f62f3cbec09ce0340229920ebc14ab7","ts":"2025-10-14T02:34:11.766904506Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"9b3834794cfb682520c8656b1d932c50","ts":"2025-10-14T02:34:11.806359172Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"f3940a50b386d9de75235ac98237bca3","ts":"2025-10-14T02:34:11.852418172Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"938dc6fa957dbc183f69e0ac2d34b2b9","ts":"2025-10-14T02:35:35.124374544Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"35752f601fad6e863eadcec4215e9fc1","ts":"2025-10-14T02:35:35.172181378Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"4ce1e2c1d3d8a61797b44d8ade954d23","ts":"2025-10-14T02:35:35.233085461Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"5083496f688236d18a87db1e575dbdb7","ts":"2025-10-14T02:35:35.284003961Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"ed84d20b7ae29da325b15494ab1e167c","ts":"2025-10-14T02:35:35.325133836Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"7a66ff198b2641467c9357c31a41de01","ts":"2025-10-14T02:35:35.384004711Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"2940300e817237bebd8f5b0cf805eaae","ts":"2025-10-14T02:35:36.733131628Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"f3bb010fcf86630dfcbd82664ddee1b1","ts":"2025-10-14T02:40:16.430449716Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"eb0781e03d15ae1d85286ee27826fd51","ts":"2025-10-14T02:40:16.480089675Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"7b13a0d6db2e3323fb8d9e98d79ecd85","ts":"2025-10-14T02:40:16.52409955Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"e64e54d3dd43c0fa5511411d6b847e96","ts":"2025-10-14T02:40:16.570713466Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"fad9686f2aa921305b74c9c1c729e3f2","ts":"2025-10-14T02:40:16.616985883Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"a888d5b66ec5ab67f2b5c1e052431050","ts":"2025-10-14T02:40:16.665623675Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"9917b7c86881f841d91a704acc441332","ts":"2025-10-14T02:40:17.990381717Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"6ec39713b5df6cce359320b9642f17b7","ts":"2025-10-14T02:42:25.455410262Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"c6c919c58818d1ea19c51cbb5d16a9b7","ts":"2025-10-14T02:43:46.505862716Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"5661cad6970311951f301c910d040746","ts":"2025-10-14T02:43:46.553938841Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"db70969970c738ef251e42e848454189","ts":"2025-10-14T02:43:46.608575508Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"dcea3596ea05624dbd16aa73316e5c81","ts":"2025-10-14T02:43:46.653506633Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"f48bd8a5b4d8765b12dcb7a69c80a610","ts":"2025-10-14T02:43:46.699896425Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"e316e5858e33411439c363132005285f","ts":"2025-10-14T02:43:46.744785633Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"d5778dfdd83a6eb2797c60de32b8314a","ts":"2025-10-14T02:43:48.097722592Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"99b5bf31c7fa2faf4d6d971cbcb6ad94","ts":"2025-10-14T02:43:51.338023802Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"e23a278deda2086ab130be75d6a2ffe6","ts":"2025-10-14T02:43:51.377639385Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"b3dfb865cdb149fbd43beb4bcf7bbd3c","ts":"2025-10-14T02:43:51.431796802Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"7cf7e207de626525f28434e8411c888f","ts":"2025-10-14T02:43:51.477400802Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"cce301ad600e6fbfaa881883d7174f8e","ts":"2025-10-14T02:43:51.524614135Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"eb456ff4864919b8042b77ef4596c8f7","ts":"2025-10-14T02:43:51.584518469Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"e211d208d384919dd981d2350251ab41","ts":"2025-10-14T02:43:52.956083844Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"f9a533524f85ea862f7ceb09f2b3efa2","ts":"2025-10-14T02:45:52.839139261Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"bbb40485001ea79ebaab3c490ea6707e","ts":"2025-10-14T02:45:57.542036346Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"7cc18fe0994209e7927f9808e6734030","ts":"2025-10-14T02:45:57.591553097Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"84f143bd09abf067178a96037c050302","ts":"2025-10-14T02:45:57.645610347Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"506c46b86d6124e77cef28072e8397d3","ts":"2025-10-14T02:45:57.696501013Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"514e20c8730a7af352f5e69b7f5d9224","ts":"2025-10-14T02:45:57.735492097Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"a8044fb2f1c76e51eaa9cfc6d50cab2f","ts":"2025-10-14T02:45:57.781593388Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"a34910cdce2648695a50c56f60ab8304","ts":"2025-10-14T02:45:59.120271208Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"26edd1921e3b17fee90c6e32205b423c","ts":"2025-10-14T02:49:28.27537268Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"8fb433227a0fed5c478962bf8055fb66","ts":"2025-10-14T02:49:28.33232168Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"3738da7702fbb2279ec5a04c64abd1ed","ts":"2025-10-14T02:49:28.384967264Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"9e0f18417ffbc621c922836eb68117ba","ts":"2025-10-14T02:49:28.450708347Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"a429b230b6cb0ee2d16c21fc6da0d187","ts":"2025-10-14T02:49:28.49050668Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"8d0764586315bcb00e3e2eb9229b798c","ts":"2025-10-14T02:49:28.548396514Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"a1ef81e5c2b2d4a3b37421af8cb60411","ts":"2025-10-14T02:49:29.891460208Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"a9006f3dd30d042d46b2851d1c8d88a5","ts":"2025-10-14T02:51:30.342894167Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"21e1601350f4266e042a184be052c718","ts":"2025-10-14T02:51:30.388090708Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"a7692686cb8e58eddd9c8ae9285815d1","ts":"2025-10-14T02:51:30.445445Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"0435778bfeebabfa4ec9542d0bdcdf18","ts":"2025-10-14T02:51:30.500000875Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"7902f24c40386c3ac580a3e75028a186","ts":"2025-10-14T02:51:30.554418834Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"9b39e1b6201de802b7e340e685605369","ts":"2025-10-14T02:51:30.610315125Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"b7813cb7bbc480e5f05743edd3355893","ts":"2025-10-14T02:51:31.928487168Z","caller":"agent","tool":"echo","decision":"deny","reason":["egress_denied"],"status":403}
+{"trace_id":"05893b48a6bf2f6abddf99a57f0e9248","ts":"2025-10-14T02:53:30.069515917Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"b0ec80b3cfd09cab3c9f531bcf3a842e","ts":"2025-10-14T02:53:30.104066333Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"3c61b414693c35eb8ded340710a986b6","ts":"2025-10-14T02:53:30.150568667Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"4312fde99ad05c49a80c9b2300591fa7","ts":"2025-10-14T02:53:30.203917375Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"a69839c0afe3bc17ef9681040da11af6","ts":"2025-10-14T02:53:30.235373833Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"4f52cb0babde2a69e84b16e39f8c7ad1","ts":"2025-10-14T02:53:30.284796042Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"beef1bee27000e4d251bb70446ec3a86","ts":"2025-10-14T02:53:31.643034501Z","caller":"agent","tool":"echo","decision":"deny","reason":["egress_denied"],"status":403}
+{"trace_id":"ab953cfbe339e1905a1d823171db788f","ts":"2025-10-14T03:02:59.626018625Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"7b55e6f6db077e58ebe372c3e3e21222","ts":"2025-10-14T03:02:59.662635916Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_manifest_json"],"status":403}
+{"trace_id":"02b407cadb382ec90c85c234529eee32","ts":"2025-10-14T03:02:59.707483583Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_payload_hash_mismatch"],"status":403}
+{"trace_id":"4e9a4527fd0427194c5dd1008ac3d4a6","ts":"2025-10-14T03:02:59.758730208Z","caller":"agent","tool":"echo","decision":"allow","status":200}
+{"trace_id":"39e29d52c5d39a5e34b563c56a19d88d","ts":"2025-10-14T03:02:59.80112075Z","caller":"agent","tool":"echo","decision":"deny","reason":["poca_failed","poca_replay"],"status":403}
+{"trace_id":"25134dffa74380294485698f233887c9","ts":"2025-10-14T03:02:59.85634525Z","caller":"agent","tool":"echo","decision":"deny","reason":["schema_request_invalid"],"status":422}
+{"trace_id":"0205ebfd63bb5fdf8cc86d38701439f6","ts":"2025-10-14T03:03:01.188486959Z","caller":"agent","tool":"echo","decision":"deny","reason":["egress_denied"],"status":403}
