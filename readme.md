@@ -8,6 +8,8 @@ It sits between an agent (client) and backend tools (an “echo” tool for now)
 
 ## Workflow
 
+### A) With Contract (X-Contract-ID: echo.v1)
+
 ```mermaid
 sequenceDiagram
   participant Agent as Agent (client)
@@ -15,67 +17,106 @@ sequenceDiagram
   participant OPA as OPA (PDP)
   participant Echo as Echo Tool (/echo)
 
-  Agent->>GW: HTTPS POST /relay (mTLS + PoCA headers + optional X-Contract-ID + body)
-  GW->>GW: Verify client cert (mTLS)
-  GW->>GW: Verify PoCA (sig, payload hash, nonce, expiry)
-  alt PoCA fails
-    GW-->>Agent: 403 (forbidden by PoCA)
-  else PoCA ok
-    alt Content-Type is JSON and X-Contract-ID = echo.v1
-      GW->>GW: Validate body against contracts/echo.v1.schema.json
-      alt Schema invalid
-        GW-->>Agent: 422 (invalid request schema)
-      else Schema ok
-        GW->>OPA: /v1/data/mcp/authz {caller, tool, poca_verified, schema_id: "echo.v1"}
-        alt OPA denies
-          GW-->>Agent: 403 (policy)
-        else OPA allows
-          GW->>GW: Egress allowlist check (egress.yaml)
-          alt Target not allowlisted
-            GW-->>Agent: 403 (egress denied)
-          else Allowlisted
-            GW->>Echo: POST /echo (timeout 5s)
-            Echo-->>GW: 200 + body
-            GW->>GW: Structured audit (trace_id, ts, decision, status)
-            GW-->>Agent: 200 + echoed body
-          end
-        end
-      end
-    else No contract header
-      GW->>OPA: /v1/data/mcp/authz {caller, tool, poca_verified}
-      alt OPA denies
-        GW-->>Agent: 403 (policy)
-      else OPA allows
-        GW->>GW: Egress allowlist check (egress.yaml)
-        alt Target not allowlisted
-          GW-->>Agent: 403 (egress denied)
-        else Allowlisted
-          GW->>Echo: POST /echo (timeout 5s)
-          Echo-->>GW: 200 + body
-          GW->>GW: Structured audit (trace_id, ts, decision, status)
-          GW-->>Agent: 200 + echoed body
-        end
-      end
-    end
-  end
+  Agent->>GW: POST /relay (mTLS, PoCA, X-Contract-ID: echo.v1, body)
+  GW->>GW: Verify mTLS + PoCA
+  GW->>GW: Validate JSON against echo.v1 schema
+  GW->>OPA: authz check (caller, tool, poca_verified, schema_id)
+  OPA-->>GW: allow
+  GW->>GW: Check egress allowlist (egress.yaml)
+  GW->>Echo: POST /echo (timeout 5s)
+  Echo-->>GW: 200 OK + echoed body
+  GW->>GW: Write structured audit log (trace_id, decision, status)
+  GW-->>Agent: 200 OK + echoed body
 ```
 
-## Components
-- Gateway (Go)
-- GET /healthz
-- POST /relay (PEP): mTLS client auth, PoCA verification, OPA query, body size cap (2 MiB), upstream timeout (5s), audit JSONL.
-- OPA (PDP)
-- Evaluates Rego policy on { caller, tool, poca_verified, trace_id }.
-- Echo Tool (Go)
-- /healthz, /echo (echoes JSON or text; 1 MiB cap, POST-only).
-- PoCA Signer (Go helper)
-- Emits X-PoCA-Manifest + X-PoCA-Signature for a given payload.
-- PKI / PoCA Keys
-- mTLS CA/server/client certs; Ed25519 public key(s) for PoCA verification.
-- Audit
-- Line-delimited JSON at logs/audit.jsonl + stdout.
+### B) Without Contract (no X-Contract-ID)
 
-## Repository layout
+```mermaid
+sequenceDiagram
+  participant Agent as Agent (client)
+  participant GW as Gateway (/relay)
+  participant OPA as OPA (PDP)
+  participant Echo as Echo Tool (/echo)
+
+  Agent->>GW: POST /relay (mTLS, PoCA, body)
+  GW->>GW: Verify mTLS + PoCA
+  GW->>OPA: authz check (caller, tool, poca_verified)
+  OPA-->>GW: allow
+  GW->>GW: Check egress allowlist (egress.yaml)
+  GW->>Echo: POST /echo (timeout 5s)
+  Echo-->>GW: 200 OK + echoed body
+  GW->>GW: Write structured audit log (trace_id, decision, status)
+  GW-->>Agent: 200 OK + echoed body
+```
+
+## Components 
+
+```mermaid
+flowchart TD
+  subgraph Client
+    AG[Agent client]
+    PS[PoCA Signer helper<br/>emits X-PoCA-Manifest + X-PoCA-Signature]
+  end
+
+  subgraph Gateway
+    GW[Gateway /relay<br/>mTLS client auth, PoCA verify, OPA authz<br/>body cap: 2 MiB, upstream timeout: 5s]
+    HZ[GET /healthz]
+    AUD[Audit JSONL<br/>logs/audit.jsonl + stdout]
+  end
+
+  subgraph Policy
+    OPA[OPA PDP<br/>/v1/data/mcp/authz]
+    REGO[Rego policy: policy/mcp/authz.rego]
+  end
+
+  subgraph Tools
+    ECHO[Echo Tool /echo<br/>POST-only, 1 MiB cap]
+    EH[GET /healthz]
+  end
+
+  subgraph Keys &amp; PKI
+    MTLS[mTLS certs: CA / server / client]
+    ED[Ed25519 pubkeys pki/agents.yaml]
+  end
+
+  PS -- headers --> AG
+  AG -- mTLS + PoCA --> GW
+  GW -- policy query --> OPA
+  OPA -- allow/deny --> GW
+  GW -- forward --> ECHO
+  ECHO -- response --> GW
+  GW -- append --> AUD
+  MTLS -. verify client .-> GW
+  ED -. verify PoCA .-> GW
+  REGO -. evaluated by .-> OPA
+```
+
+## Error reference (403 vs 422)
+
+**403 Forbidden** — the request is **not authorized** to proceed.
+- **forbidden by PoCA**: PoCA verification failed (bad signature, expired manifest, nonce replay, or payload hash mismatch).
+- **policy**: OPA authorization denied the action for this caller/tool/context.
+- **egress denied**: target service not on the allowlist (see `egress.yaml`).
+
+Audit examples:
+```json
+{"decision":"deny","status":403,"reason":["forbidden_by_poca"],"caller":"agent","tool":"echo"}
+{"decision":"deny","status":403,"reason":["policy"],"caller":"agent","tool":"echo"}
+{"decision":"deny","status":403,"reason":["egress_denied"],"caller":"agent","tool":"echo"}
+```
+
+**422 Unprocessable Entity** — the request is **syntactically valid** but **fails contract checks**.
+- **json_parse_error**: `Content-Type: application/json` but body is not valid JSON.
+- **schema_request_invalid**: JSON does not match the declared contract (e.g., missing required fields) when `X-Contract-ID: echo.v1` is set.
+
+Audit examples:
+```json
+{"decision":"deny","status":422,"reason":["json_parse_error","schema_request_invalid"],"caller":"agent","tool":"echo"}
+{"decision":"deny","status":422,"reason":["schema_request_invalid"],"caller":"agent","tool":"echo"}
+```
+
+**Tip:** 403 = *who/where not allowed* (identity, policy, egress). 422 = *what not acceptable* (payload/contract).
+
 
 ```
 zt-sanctum/
