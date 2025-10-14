@@ -15,20 +15,47 @@ sequenceDiagram
   participant OPA as OPA (PDP)
   participant Echo as Echo Tool (/echo)
 
-  Agent->>GW: HTTPS POST /relay (mTLS + PoCA headers + body)
+  Agent->>GW: HTTPS POST /relay (mTLS + PoCA headers + optional X-Contract-ID + body)
   GW->>GW: Verify client cert (mTLS)
   GW->>GW: Verify PoCA (sig, payload hash, nonce, expiry)
   alt PoCA fails
     GW-->>Agent: 403 (forbidden by PoCA)
   else PoCA ok
-    GW->>OPA: /v1/data/mcp/authz {caller, tool, poca_verified}
-    alt OPA denies
-      GW-->>Agent: 403 (policy)
-    else OPA allows
-      GW->>Echo: POST /echo (timeout 5s)
-      Echo-->>GW: 200 + body
-      GW->>GW: Structured audit (trace_id, ts, decision, status)
-      GW-->>Agent: 200 + echoed body
+    alt Content-Type is JSON and X-Contract-ID = echo.v1
+      GW->>GW: Validate body against contracts/echo.v1.schema.json
+      alt Schema invalid
+        GW-->>Agent: 422 (invalid request schema)
+      else Schema ok
+        GW->>OPA: /v1/data/mcp/authz {caller, tool, poca_verified, schema_id: "echo.v1"}
+        alt OPA denies
+          GW-->>Agent: 403 (policy)
+        else OPA allows
+          GW->>GW: Egress allowlist check (egress.yaml)
+          alt Target not allowlisted
+            GW-->>Agent: 403 (egress denied)
+          else Allowlisted
+            GW->>Echo: POST /echo (timeout 5s)
+            Echo-->>GW: 200 + body
+            GW->>GW: Structured audit (trace_id, ts, decision, status)
+            GW-->>Agent: 200 + echoed body
+          end
+        end
+      end
+    else No contract header
+      GW->>OPA: /v1/data/mcp/authz {caller, tool, poca_verified}
+      alt OPA denies
+        GW-->>Agent: 403 (policy)
+      else OPA allows
+        GW->>GW: Egress allowlist check (egress.yaml)
+        alt Target not allowlisted
+          GW-->>Agent: 403 (egress denied)
+        else Allowlisted
+          GW->>Echo: POST /echo (timeout 5s)
+          Echo-->>GW: 200 + body
+          GW->>GW: Structured audit (trace_id, ts, decision, status)
+          GW-->>Agent: 200 + echoed body
+        end
+      end
     end
   end
 ```
@@ -54,30 +81,37 @@ sequenceDiagram
 zt-sanctum/
 ├─ cmd/
 │  └─ gateway/
-│     └─ main.go                # mTLS, PoCA verify, OPA call, limits, audit
+│     └─ main.go                # mTLS, PoCA verify, OPA call, limits, audit, contract-aware schema check
+├─ contracts/
+│  └─ echo.v1.schema.json       # JSON-Schema for echo tool
 ├─ internal/
 │  ├─ poca/
-│  │  └─ verify.go             # PoCA manifest/nonce/sig/exp verification
+│  │  └─ verify.go              # PoCA manifest/nonce/sig/exp verification
 │  └─ pki/
-│     └─ load.go               # agents.yaml loader (Ed25519 pubkeys)
-├─ tools/
-│  ├─ echo/
-│  │  ├─ main.go               # /healthz, /echo
-│  │  └─ Dockerfile
-│  └─ poca_sign/
-│     └─ main.go               # emits PoCA headers for a payload
+│     └─ load.go                # agents.yaml loader (Ed25519 pubkeys)
 ├─ policy/
 │  └─ mcp/
-│     └─ authz.rego            # OPA v1 syntax policy
+│     └─ authz.rego             # OPA v1 syntax policy
+├─ tools/
+│  ├─ echo/
+│  │  ├─ main.go                # /healthz, /echo
+│  │  └─ Dockerfile
+│  └─ poca_sign/
+│     └─ main.go                # emits PoCA headers for a payload
+├─ tests/
+│  └─ e2e.sh                    # end-to-end tests (PoCA, replay, schema, egress)
+├─ egress.yaml                  # outbound allowlist
 ├─ pki/
-│  ├─ agent.key                # Ed25519 private (local dev only)
-│  ├─ agent.pub                # Ed25519 public (PEM)
-│  └─ agents.yaml              # PoCA verifier pubkeys (base64url raw)
-├─ certs/                      # dev CA/server/client certs (gitignored)
-├─ logs/                       # audit.jsonl lives here
+│  ├─ agent.key                 # Ed25519 private (local dev only)
+│  ├─ agent.pub                 # Ed25519 public (PEM)
+│  └─ agents.yaml               # PoCA verifier pubkeys (base64url raw)
+├─ resources/
+│  └─ SanctumLogo.png
+├─ certs/                       # dev CA/server/client certs (gitignored)
+├─ logs/                        # audit.jsonl lives here
 ├─ Dockerfile.gateway
 ├─ docker-compose.yaml
-└─ README.md
+└─ readme.md
 ```
 
 ## Quickstart
@@ -214,10 +248,10 @@ POCA_REQUIRED	true	If true, reject requests without valid PoCA
 POCA_AGENTS_PATH	/app/pki/agents.yaml	Agents public keys mapping
 
 Volumes in docker-compose.yaml:
-- ./certs:/certs:ro
-- ./policy:/policy:ro
-- ./logs:/var/log/zt-gateway
-- ./pki:/app/pki:ro
+  - ./certs:/certs:ro                 # mTLS certs (CA, server, client)
+  - ./policy:/policy:ro               # OPA Rego policies
+  - ./logs:/var/log/zt-gateway        # structured JSONL audits
+  - ./pki:/app/pki:ro                 # Ed25519 pubkeys for PoCA agents
 
 ## Troubleshooting
 - 403 “forbidden by PoCA”:
