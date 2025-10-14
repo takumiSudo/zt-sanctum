@@ -6,8 +6,6 @@
 A minimal Zero-Trust (ZT) gateway with PoCA (Proof-of-Context Access) and OPA policy checks.
 It sits between an agent (client) and backend tools (an “echo” tool for now), enforcing mTLS identity, PoCA integrity, policy allow/deny, safety limits, and structured auditing.
 
-⸻
-
 ## Workflow
 
 ```mermaid
@@ -35,8 +33,6 @@ sequenceDiagram
   end
 ```
 
-⸻
-
 ## Components
 	•	Gateway (Go)
 	•	GET /healthz
@@ -51,8 +47,6 @@ sequenceDiagram
 	•	mTLS CA/server/client certs; Ed25519 public key(s) for PoCA verification.
 	•	Audit
 	•	Line-delimited JSON at logs/audit.jsonl + stdout.
-
-⸻
 
 ## Repository layout
 
@@ -85,9 +79,6 @@ zt-sanctum/
 ├─ docker-compose.yaml
 └─ README.md
 ```
-
-
-⸻
 
 ## Quickstart
 
@@ -164,8 +155,6 @@ docker compose logs -f echo
 
 On Apple Silicon, if OPA pulls an amd64 image, add platform: linux/arm64 under the opa service in docker-compose.yaml.
 
-⸻
-
 ## Make a signed request (PoCA happy path)
 
 1) Build the PoCA signer
@@ -206,16 +195,12 @@ tail -n 20 logs/audit.jsonl
 
 Each entry includes: trace_id, ts, caller, tool, decision, status, optional reason.
 
-⸻
-
 🔐 Security model (current)
 	•	Identity: mTLS client certs (CN → caller).
 	•	Integrity (PoCA-lite): Ed25519 signature over the base64url-encoded manifest; payload SHA-256 matches body; nonce replay protection; expiry enforced.
 	•	Authorization: OPA Rego rules (ABAC) on {caller, tool, poca_verified, trace_id}.
 	•	Safety: Request body cap (2 MiB), upstream timeout (5s), OPA timeout (3s).
 	•	Audit: Structured JSONL + stdout.
-
-⸻
 
 ## Configuration
 
@@ -234,8 +219,6 @@ Volumes in docker-compose.yaml:
 	•	./logs:/var/log/zt-gateway
 	•	./pki:/app/pki:ro
 
-⸻
-
 ## Troubleshooting
 	•	403 “forbidden by PoCA”:
 Check logs/audit.jsonl for reason:
@@ -253,15 +236,12 @@ curl -s http://localhost:8181/v1/data/mcp/authz \
   -d '{"input":{"caller":"agent","tool":"echo","poca_verified":true}}'
 ```
 
-
 	•	Docker platform warning (Apple Silicon):
 Set platform: linux/arm64 for the opa service.
 	•	zsh parse errors:
 Avoid adding comments to lines that end with \. Keep comments on separate lines.
 
-⸻
-
-## Roadmap (suggested next steps)
+## Roadmap 
 	1.	Egress allowlist (deny-by-default) — YAML of allowed upstreams (+ optional TLS pin/SPIFFE ID).
 	2.	Request JSON-Schema — validate input per tool; pass schema_id to OPA.
 	3.	Tamper-evident audit — add prev_hash and record_hash to chain entries.
@@ -272,12 +252,8 @@ Avoid adding comments to lines that end with \. Keep comments on separate lines.
 	8.	Observability — OpenTelemetry spans; Jaeger/Tempo in compose.
 	9.	DLP & prompt-injection guards — light regex masks; controlled response filters.
 
-⸻
-
 ## Disclaimer
 
 This repository is an MVP for learning and scaffolding Zero-Trust patterns. Keys and certs are for local development only. Review, harden, and integrate with your organization’s PKI, identity, secrets, and compliance standards before production use.
 
-⸻
 
-⸻
