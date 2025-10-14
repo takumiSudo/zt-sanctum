@@ -279,5 +279,3 @@ Avoid adding comments to lines that end with \. Keep comments on separate lines.
 This repository is an MVP for learning and scaffolding Zero-Trust patterns. Keys and certs are for local development only. Review, harden, and integrate with your organization’s PKI, identity, secrets, and compliance standards before production use.
 
 ⸻
-
-⸻
