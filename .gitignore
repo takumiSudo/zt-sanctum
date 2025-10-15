@@ -9,7 +9,9 @@ dist/
 
 # Certificates (dev-only; never commit)
 certs/
-pki/
+pki/agent.key
+pki/agent.pub
+pki/agents.yaml
 
 # Docker logs
 *.log
