@@ -9,6 +9,7 @@ dist/
 
 # Certificates (dev-only; never commit)
 certs/
+pki/
 
 # Docker logs
 *.log
