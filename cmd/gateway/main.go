@@ -82,6 +82,11 @@ func main() {
 	if schemaIDEcho == "" {
 		schemaIDEcho = "echo.v1" // fallback if $id missing
 	}
+	schemaTodosPath := getenv("SCHEMA_TODOS_PATH", "/app/contracts/todo.create.v1.json")
+	todosContract, err := contracts.Load(schemaTodosPath)
+	if err != nil { log.Fatalf("failed to load todos schema: %v", err) }
+	schemaIDTodos := todosContract.ID
+	if schemaIDTodos == "" { schemaIDTodos = "todo.create.v1" }
 
 	// ---------- mTLS trust (client auth) ----------
 	caCert, err := os.ReadFile("/certs/ca.crt")
@@ -203,9 +208,35 @@ func main() {
 			}
 
 			contractID := r.Header.Get("X-Contract-ID")
+			// parse the inner payload (envelope payload) for schema validation
+			var payloadJSON any
+			if err := json.Unmarshal(payloadBytes, &payloadJSON); err != nil {
+				writeAudit(auditPath, AuditLog{
+					TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
+					Caller: caller, Tool: resolvedTool, Decision: "deny",
+					Reason: []string{"schema_request_invalid", "json_parse_error_payload"},
+					Status: http.StatusBadRequest,
+				})
+				http.Error(w, "invalid json payload", http.StatusBadRequest)
+				return
+			}
 			if resolvedTool == "echo" && contractID == schemaIDEcho {
-				if err := echoContract.Schema.Validate(bytes.NewReader(payloadBytes)); err != nil {
+				if err := echoContract.Schema.Validate(payloadJSON); err != nil {
 					log.Printf("schema validation failed: %v; body=%s", err, string(payloadBytes))
+					writeAudit(auditPath, AuditLog{
+						TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
+						Caller: caller, Tool: resolvedTool, Decision: "deny",
+						Reason: []string{"schema_request_invalid"},
+						Status: http.StatusUnprocessableEntity,
+					})
+					http.Error(w, "invalid request schema", http.StatusUnprocessableEntity)
+					return
+				}
+			}
+			// todos schema validation (payload only) when client opts in via X-Contract-ID
+			if resolvedTool == "todos" && contractID == schemaIDTodos {
+				if err := todosContract.Schema.Validate(payloadJSON); err != nil {
+					log.Printf("todos schema validation failed: %v; payload=%s", err, string(payloadBytes))
 					writeAudit(auditPath, AuditLog{
 						TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
 						Caller: caller, Tool: resolvedTool, Decision: "deny",

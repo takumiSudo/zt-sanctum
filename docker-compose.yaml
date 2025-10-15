@@ -13,6 +13,7 @@ services:
       - EGRESS_CONFIG_PATH=/app/egress.yaml
       - SCHEMA_ECHO_PATH=/app/contracts/echo.v1.json
       - TODOS_URL=http://todos:8082/call
+      - SCHEMA_TODOS_PATH=/app/contracts/todo.create.v1.json
     ports:
       - "8443:8443"
     volumes:
