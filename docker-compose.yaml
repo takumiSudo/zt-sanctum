@@ -11,6 +11,8 @@ services:
       - POCA_REQUIRED = true
       - POCA_AGENTS_PATH =/app/pki/agents.yaml
       - EGRESS_CONFIG_PATH=/app/egress.yaml
+      - SCHEMA_ECHO_PATH=/app/contracts/echo.v1.json
+      - TODOS_URL=http://todos:8082/call
     ports:
       - "8443:8443"
     volumes:
@@ -18,6 +20,7 @@ services:
       - ./logs:/var/log/zt-gateway
       - ./pki:/app/pki:ro
       - ./egress.yaml:/app/egress.yaml:ro
+      - ./contracts:/app/contracts:ro
     depends_on:
       - echo
       - opa
@@ -30,13 +33,28 @@ services:
       - "8081:8081"
 
   opa:
-      image: openpolicyagent/opa:latest
-      command:
-        - "run"
-        - "--server"
-        - "--addr=0.0.0.0:8181"
-        - "/policy"
-      volumes:
-        - ./policy:/policy:ro
-      ports:
-        - "8181:8181"
+    image: openpolicyagent/opa:latest
+    platform: linux/amd64
+    command:
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+      - "/policy"
+    volumes:
+      - ./policy:/policy:ro
+    ports:
+      - "8181:8181"
+
+  todos:
+    build:
+      context: .
+      dockerfile: tools/todos/Dockerfile.todos
+    platform: linux/arm64         # M1/M2 Macs; use linux/amd64 on Intel
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/healthz"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 2s

@@ -1,0 +1,15 @@
+# ---------- build stage ----------
+FROM golang:1.25.1 AS build
+WORKDIR /src
+# copy the whole repo so the root go.mod is available
+COPY . .
+# build the todos binary from its package path
+# (arm64 to run natively on M1; switch to amd64 if needed)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o /out/todos ./tools/todos
+
+# ---------- runtime stage ----------
+FROM debian:stable-slim
+WORKDIR /app
+COPY --from=build /out/todos /app/todos
+EXPOSE 8082
+ENTRYPOINT ["/app/todos"]
