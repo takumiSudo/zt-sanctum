@@ -3,7 +3,10 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
-	"crypto/x509"
+	"crypto/ed25519"
+    "crypto/x509"
+    "encoding/base64"
+    "errors"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -29,6 +32,26 @@ type AuditLog struct {
 	Decision string   `json:"decision"`
 	Reason   []string `json:"reason,omitempty"`
 	Status   int      `json:"status"`
+}
+
+func decodeAgentKeyFlexible(s string) (ed25519.PublicKey, error) {
+    if b, err := base64.RawURLEncoding.DecodeString(s); err == nil {
+        if len(b) == ed25519.PublicKeySize { return ed25519.PublicKey(b), nil }
+        if pk, err2 := tryParsePKIX(b); err2 == nil { return pk, nil }
+    }
+    if b, err := base64.StdEncoding.DecodeString(s); err == nil {
+        if len(b) == ed25519.PublicKeySize { return ed25519.PublicKey(b), nil }
+        if pk, err2 := tryParsePKIX(b); err2 == nil { return pk, nil }
+    }
+    return nil, errors.New("unsupported ed25519 public key encoding")
+}
+
+func tryParsePKIX(der []byte) (ed25519.PublicKey, error) {
+    pkAny, err := x509.ParsePKIXPublicKey(der)
+    if err != nil { return nil, err }
+    pk, ok := pkAny.(ed25519.PublicKey)
+    if !ok { return nil, errors.New("not an ed25519 PKIX public key") }
+    return pk, nil
 }
 
 func main() {
@@ -77,7 +100,7 @@ func main() {
 	// ---------- HTTP mux ----------
 	mux := http.NewServeMux()
 	agents := poca.NewAgents()
-	if err := pki.LoadAgentsYAML(pocaAgentsPath, agents.Set, poca.LoadEd25519PubkeyB64); err != nil {
+	if err := pki.LoadAgentsYAML(pocaAgentsPath, agents.Set, decodeAgentKeyFlexible); err != nil {
 		log.Fatalf("failed loading agents.yaml: %v", err)
 	}
 	nonces := poca.NewNonceCache(nonceTTL)
