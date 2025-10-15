@@ -317,15 +317,15 @@ Set platform: linux/arm64 for the opa service.
 Avoid adding comments to lines that end with \. Keep comments on separate lines.
 
 ## Roadmap 
-	1.	Egress allowlist (deny-by-default) — YAML of allowed upstreams (+ optional TLS pin/SPIFFE ID).
-	2.	Request JSON-Schema — validate input per tool; pass schema_id to OPA.
-	3.	Tamper-evident audit — add prev_hash and record_hash to chain entries.
-	4.	Router + tool registry — accept {tool, payload} envelope and route by tools.yaml.
-	5.	SPIFFE/SPIRE — replace static certs with workload SVIDs; use SPIFFE IDs in PoCA/OPA.
-	6.	Vault-backed secrets — broker short-lived creds server-side.
-	7.	Content trust — pin image digests now; later verify with Sigstore/Cosign.
-	8.	Observability — OpenTelemetry spans; Jaeger/Tempo in compose.
-	9.	DLP & prompt-injection guards — light regex masks; controlled response filters.
+- [x] Egress allowlist (deny-by-default) — YAML of allowed upstreams (+ optional TLS pin/SPIFFE ID).
+- [x] Request JSON-Schema — validate input per tool; pass schema_id to OPA.
+Tamper-evident audit — add prev_hash and record_hash to chain entries.
+Router + tool registry — accept {tool, payload} envelope and route by tools.yaml.
+SPIFFE/SPIRE — replace static certs with workload SVIDs; use SPIFFE IDs in PoCA/OPA.
+Vault-backed secrets — broker short-lived creds server-side.
+Content trust — pin image digests now; later verify with Sigstore/Cosign.
+Observability — OpenTelemetry spans; Jaeger/Tempo in compose.
+DLP & prompt-injection guards — light regex masks; controlled response filters.
 
 ## Disclaimer
 

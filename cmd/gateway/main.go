@@ -37,6 +37,7 @@ func main() {
 	auditPath := getenv("AUDIT_PATH", defaultAuditPath)
 	opaURL := getenv("OPA_URL", "http://opa:8181/v1/data/mcp/authz")
 	backendURL := getenv("BACKEND_URL", "http://echo:8081/echo")
+	todosURL := getenv("TODOS_URL", "http://todos:8082/call")
 	maxBodyBytes := int64(2 << 20) // 2 MiB
 	backendTimeout := 5 * time.Second
 	opaTimeout := 3 * time.Second
@@ -127,17 +128,32 @@ func main() {
 			return
 		}
 
+		// ---- Envelope: { "tool": "...", "payload": {...} } ----
+		// Back-compat: if no envelope, default to echo + whole body as payload.
+		resolvedTool := "echo"
+		payloadBytes := body
+
+		type envT struct {
+			Tool    string          `json:"tool"`
+			Payload json.RawMessage `json:"payload"`
+		}
+		var env envT
+		if err := json.Unmarshal(body, &env); err == nil && env.Tool != "" && len(env.Payload) > 0 {
+			resolvedTool = env.Tool
+			payloadBytes = env.Payload
+		}
+
 		// --- PoCA verification ---
 		headers := map[string]string{
 			"X-PoCA-Manifest":  r.Header.Get("X-PoCA-Manifest"),
 			"X-PoCA-Signature": r.Header.Get("X-PoCA-Signature"),
 		}
-		pocaRes := poca.Verify(headers, body, caller, "echo", agents, nonces, time.Now().UTC(), clockSkew)
+		pocaRes := poca.Verify(headers, body, caller, resolvedTool, agents, nonces, time.Now().UTC(), clockSkew)
 		if !pocaRes.OK {
 			if pocaRequired {
 				writeAudit(auditPath, AuditLog{
 					TraceID:  traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
-					Caller: caller, Tool: "echo", Decision: "deny",
+					Caller: caller, Tool: resolvedTool, Decision: "deny",
 					Reason: append([]string{"poca_failed"}, pocaRes.Reasons...),
 					Status: http.StatusForbidden,
 				})
@@ -155,7 +171,7 @@ func main() {
 			if err := json.Unmarshal(body, &js); err != nil {
 				writeAudit(auditPath, AuditLog{
 					TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
-					Caller: caller, Tool: "echo", Decision: "deny",
+					Caller: caller, Tool: resolvedTool, Decision: "deny",
 					Reason: []string{"schema_request_invalid", "json_parse_error"},
 					Status: http.StatusBadRequest,
 				})
@@ -164,12 +180,12 @@ func main() {
 			}
 
 			contractID := r.Header.Get("X-Contract-ID")
-			if contractID == schemaIDEcho {
-				if err := echoContract.Schema.Validate(bytes.NewReader(body)); err != nil {
-					log.Printf("schema validation failed: %v; body=%s", err, string(body))
+			if resolvedTool == "echo" && contractID == schemaIDEcho {
+				if err := echoContract.Schema.Validate(bytes.NewReader(payloadBytes)); err != nil {
+					log.Printf("schema validation failed: %v; body=%s", err, string(payloadBytes))
 					writeAudit(auditPath, AuditLog{
 						TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
-						Caller: caller, Tool: "echo", Decision: "deny",
+						Caller: caller, Tool: resolvedTool, Decision: "deny",
 						Reason: []string{"schema_request_invalid"},
 						Status: http.StatusUnprocessableEntity,
 					})
@@ -183,17 +199,17 @@ func main() {
 		var reasons []string
 		// Determine which schema ID (if any) should be conveyed to OPA
 		sentSchemaID := r.Header.Get("X-Contract-ID")
-		if sentSchemaID == "" {
-			sentSchemaID = schemaIDEcho // fall back to known echo contract id
+		if sentSchemaID == "" && resolvedTool == "echo" {
+			sentSchemaID = schemaIDEcho
 		}
-		allowed, reasons = checkOPA(opaURL, caller, "echo", opaTimeout, traceID, pocaRes.Verified, sentSchemaID)
+		allowed, reasons = checkOPA(opaURL, caller, resolvedTool, opaTimeout, traceID, pocaRes.Verified, sentSchemaID)
 		// allowed, reasons := checkOPA(opaURL, caller, "echo", opaTimeout, traceID)
 		if !allowed {
 			writeAudit(auditPath, AuditLog{
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   reasons,
 				Status:   http.StatusForbidden,
@@ -202,14 +218,35 @@ func main() {
 			return
 		}
 
-		// ---------- Relay to backend ----------
-		// Egress deny-by-default: ensure backendURL is allowlisted
-		if !egCfg.IsAllowed(backendURL) {
+		// Resolve target URL by tool (router)
+		targetURL := backendURL // default: echo
+		switch resolvedTool {
+		case "echo":
+			// already default
+		case "todos":
+			targetURL = todosURL
+		default:
 			writeAudit(auditPath, AuditLog{
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
+				Decision: "deny",
+				Reason:   []string{"unknown_tool"},
+				Status:   http.StatusBadRequest,
+			})
+			http.Error(w, "unknown tool", http.StatusBadRequest)
+			return
+		}
+
+		// ---------- Relay to backend ----------
+		// Egress deny-by-default: ensure targetURL is allowlisted
+		if !egCfg.IsAllowed(targetURL) {
+			writeAudit(auditPath, AuditLog{
+				TraceID:  traceID,
+				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
+				Caller:   caller,
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   []string{"egress_denied"},
 				Status:   http.StatusForbidden,
@@ -218,13 +255,13 @@ func main() {
 			return
 		}
 
-		req, err := http.NewRequest(http.MethodPost, backendURL, bytes.NewReader(body))
+		req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(payloadBytes))
 		if err != nil {
 			writeAudit(auditPath, AuditLog{
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   []string{"failed to build backend request"},
 				Status:   http.StatusInternalServerError,
@@ -245,7 +282,7 @@ func main() {
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   []string{"backend error"},
 				Status:   http.StatusBadGateway,
@@ -261,7 +298,7 @@ func main() {
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   []string{"failed to read backend response"},
 				Status:   http.StatusBadGateway,
@@ -275,7 +312,7 @@ func main() {
 			TraceID:  traceID,
 			Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 			Caller:   caller,
-			Tool:     "echo",
+			Tool:     resolvedTool,
 			Decision: "allow",
 			Status:   resp.StatusCode,
 		})

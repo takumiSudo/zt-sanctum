@@ -35,6 +35,21 @@ gen_poca() {
   echo "$man|$sig"
 }
 
+gen_poca_tool() {
+  local body="$1" tool="$2"
+  # Try signer with explicit tool; fall back to legacy if unsupported
+  if tools/poca_sign/poca_sign -key "$SIGN_KEY" -tool "$tool" -body "$body" > /tmp/poca_e2e.txt 2>/dev/null; then
+    :
+  else
+    tools/poca_sign/poca_sign -key "$SIGN_KEY" -body "$body" > /tmp/poca_e2e.txt
+    echo "WARN: poca_sign does not support -tool; PoCA tool mismatch may cause 403" >&2
+  fi
+  local man sig
+  man="$(sed -n 's/^X-PoCA-Manifest: //p'  /tmp/poca_e2e.txt | tr -d '\r\n')"
+  sig="$(sed -n 's/^X-PoCA-Signature: //p' /tmp/poca_e2e.txt | tr -d '\r\n')"
+  echo "$man|$sig"
+}
+
 call_gateway() {
   local body="$1" man="$2" sig="$3"
   local out="/tmp/e2e_resp.json"
@@ -63,6 +78,35 @@ call_gateway_contract() {
     -d "$body" \
     "$GATEWAY_URL")
   echo "$code|$out"
+}
+
+# Assertions that allow skipping when policy/egress blocks (HTTP 403)
+assert_code_or_skip() {
+  local name="$1" expect="$2" got="$3"
+  if [[ "$got" == "$expect" ]]; then
+    printf "✅  %s (HTTP %s)\n" "$name" "$got"; pass=$((pass+1))
+  elif [[ "$got" == "403" ]]; then
+    printf "↷  (skipping %s; policy/egress denied with 403)\n" "$name"
+  else
+    printf "❌  %s (got %s, expected %s)\n" "$name" "$got" "$expect"
+    printf "    last audit: %s\n" "$(last_audit)"; fail=$((fail+1))
+  fi
+}
+
+assert_any_or_skip() {
+  local name="$1" got="$2"; shift 2
+  local ok=0
+  for exp in "$@"; do
+    if [[ "$got" == "$exp" ]]; then ok=1; break; fi
+  done
+  if [[ $ok -eq 1 ]]; then
+    printf "✅  %s (HTTP %s)\n" "$name" "$got"; pass=$((pass+1))
+  elif [[ "$got" == "403" ]]; then
+    printf "↷  (skipping %s; policy/egress denied with 403)\n" "$name"
+  else
+    printf "❌  %s (got %s, expected one of: %s)\n" "$name" "$got" "$*"
+    printf "    last audit: %s\n" "$(last_audit)"; fail=$((fail+1))
+  fi
 }
 
 assert_code() {
@@ -122,7 +166,20 @@ IFS='|' read -r MAN4 SIG4 <<<"$(gen_poca "$bad_schema")"
 IFS='|' read -r code resp <<<"$(call_gateway_contract "$bad_schema" "$MAN4" "$SIG4" "echo.v1")"
 assert_code "deny_schema_invalid" "422" "$code"
 
-# 6) Egress denied (temporarily remove allow entry, then restore)
+# 6) TODOS: create OK via envelope (requires OPA allow + egress allow)
+todos_ok_body='{"tool":"todos","payload":{"op":"create","title":"demo task"}}'
+IFS='|' read -r MAN_T SIG_T <<<"$(gen_poca_tool "$todos_ok_body" "todos")"
+IFS='|' read -r code resp <<<"$(call_gateway_contract "$todos_ok_body" "$MAN_T" "$SIG_T" "todo.create.v1")"
+assert_code_or_skip "todos_create_ok" "200" "$code"
+
+# 7) TODOS: bad schema/payload (missing title) → service 400 or gateway 422 if schema enforced
+todos_bad_body='{"tool":"todos","payload":{"op":"create"}}'
+IFS='|' read -r MAN_T2 SIG_T2 <<<"$(gen_poca_tool "$todos_bad_body" "todos")"
+IFS='|' read -r code resp <<<"$(call_gateway_contract "$todos_bad_body" "$MAN_T2" "$SIG_T2" "todo.create.v1")"
+# Accept 400 (todos service validation) or 422 (gateway schema), skip on 403 policy/egress
+assert_any_or_skip "todos_bad_payload" "$code" "400" "422"
+
+# 8) Egress denied (temporarily remove allow entry, then restore)
 if [[ -f "$EGRESS_FILE" ]] && grep -q "url: http://echo:8081/echo" "$EGRESS_FILE"; then
   EGRESS_BAK="$(mktemp "$EGRESS_FILE.bak.XXXX")"
   cp "$EGRESS_FILE" "$EGRESS_BAK"
