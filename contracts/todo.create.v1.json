@@ -1,0 +1,11 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"todo.create.v1",
+  "type":"object",
+  "properties":{
+    "op":{"const":"create"},
+    "title":{"type":"string","minLength":1}
+  },
+  "required":["op","title"],
+  "additionalProperties":false
+}

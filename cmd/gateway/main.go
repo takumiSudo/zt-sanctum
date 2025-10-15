@@ -13,10 +13,12 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"strings"
 
 	"zerotrust/internal/pki"
 	"zerotrust/internal/poca"
 	"zerotrust/internal/egress"
+	"zerotrust/internal/contracts"
 )
 
 type AuditLog struct {
@@ -35,6 +37,7 @@ func main() {
 	auditPath := getenv("AUDIT_PATH", defaultAuditPath)
 	opaURL := getenv("OPA_URL", "http://opa:8181/v1/data/mcp/authz")
 	backendURL := getenv("BACKEND_URL", "http://echo:8081/echo")
+	todosURL := getenv("TODOS_URL", "http://todos:8082/call")
 	maxBodyBytes := int64(2 << 20) // 2 MiB
 	backendTimeout := 5 * time.Second
 	opaTimeout := 3 * time.Second
@@ -46,6 +49,15 @@ func main() {
 	egCfg, err := egress.Load(egressPath)
 	if err != nil {
 		log.Fatalf("failed to load egress config: %v", err)
+	}
+	schemaEchoPath := getenv("SCHEMA_ECHO_PATH", "/app/contracts/echo.v1.json")
+	echoContract, err := contracts.Load(schemaEchoPath)
+	if err != nil {
+		log.Fatalf("failed to load echo schema: %v", err)
+	}
+	schemaIDEcho := echoContract.ID
+	if schemaIDEcho == "" {
+		schemaIDEcho = "echo.v1" // fallback if $id missing
 	}
 
 	// ---------- mTLS trust (client auth) ----------
@@ -116,17 +128,32 @@ func main() {
 			return
 		}
 
+		// ---- Envelope: { "tool": "...", "payload": {...} } ----
+		// Back-compat: if no envelope, default to echo + whole body as payload.
+		resolvedTool := "echo"
+		payloadBytes := body
+
+		type envT struct {
+			Tool    string          `json:"tool"`
+			Payload json.RawMessage `json:"payload"`
+		}
+		var env envT
+		if err := json.Unmarshal(body, &env); err == nil && env.Tool != "" && len(env.Payload) > 0 {
+			resolvedTool = env.Tool
+			payloadBytes = env.Payload
+		}
+
 		// --- PoCA verification ---
 		headers := map[string]string{
 			"X-PoCA-Manifest":  r.Header.Get("X-PoCA-Manifest"),
 			"X-PoCA-Signature": r.Header.Get("X-PoCA-Signature"),
 		}
-		pocaRes := poca.Verify(headers, body, caller, "echo", agents, nonces, time.Now().UTC(), clockSkew)
+		pocaRes := poca.Verify(headers, body, caller, resolvedTool, agents, nonces, time.Now().UTC(), clockSkew)
 		if !pocaRes.OK {
 			if pocaRequired {
 				writeAudit(auditPath, AuditLog{
 					TraceID:  traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
-					Caller: caller, Tool: "echo", Decision: "deny",
+					Caller: caller, Tool: resolvedTool, Decision: "deny",
 					Reason: append([]string{"poca_failed"}, pocaRes.Reasons...),
 					Status: http.StatusForbidden,
 				})
@@ -135,16 +162,54 @@ func main() {
 			}
 			// Not required: continue but mark unverified
 		}
+		// ---- JSON-Schema validation (request) ----
+		// Only enforce schema when caller explicitly opts into this contract via header.
+		// This avoids rejecting valid non-contract JSON payloads used by some tests.
+		ct := r.Header.Get("Content-Type")
+		if strings.HasPrefix(strings.ToLower(ct), "application/json") {
+			var js any
+			if err := json.Unmarshal(body, &js); err != nil {
+				writeAudit(auditPath, AuditLog{
+					TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
+					Caller: caller, Tool: resolvedTool, Decision: "deny",
+					Reason: []string{"schema_request_invalid", "json_parse_error"},
+					Status: http.StatusBadRequest,
+				})
+				http.Error(w, "invalid json", http.StatusBadRequest)
+				return
+			}
 
+			contractID := r.Header.Get("X-Contract-ID")
+			if resolvedTool == "echo" && contractID == schemaIDEcho {
+				if err := echoContract.Schema.Validate(bytes.NewReader(payloadBytes)); err != nil {
+					log.Printf("schema validation failed: %v; body=%s", err, string(payloadBytes))
+					writeAudit(auditPath, AuditLog{
+						TraceID: traceID, Ts: time.Now().UTC().Format(time.RFC3339Nano),
+						Caller: caller, Tool: resolvedTool, Decision: "deny",
+						Reason: []string{"schema_request_invalid"},
+						Status: http.StatusUnprocessableEntity,
+					})
+					http.Error(w, "invalid request schema", http.StatusUnprocessableEntity)
+					return
+				}
+			}
+		}
 		// ---------- PDP (OPA) check ----------
-		allowed, reasons := checkOPA(opaURL, caller, "echo", opaTimeout, traceID, pocaRes.Verified)
+		var allowed bool
+		var reasons []string
+		// Determine which schema ID (if any) should be conveyed to OPA
+		sentSchemaID := r.Header.Get("X-Contract-ID")
+		if sentSchemaID == "" && resolvedTool == "echo" {
+			sentSchemaID = schemaIDEcho
+		}
+		allowed, reasons = checkOPA(opaURL, caller, resolvedTool, opaTimeout, traceID, pocaRes.Verified, sentSchemaID)
 		// allowed, reasons := checkOPA(opaURL, caller, "echo", opaTimeout, traceID)
 		if !allowed {
 			writeAudit(auditPath, AuditLog{
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   reasons,
 				Status:   http.StatusForbidden,
@@ -153,14 +218,35 @@ func main() {
 			return
 		}
 
-		// ---------- Relay to backend ----------
-		// Egress deny-by-default: ensure backendURL is allowlisted
-		if !egCfg.IsAllowed(backendURL) {
+		// Resolve target URL by tool (router)
+		targetURL := backendURL // default: echo
+		switch resolvedTool {
+		case "echo":
+			// already default
+		case "todos":
+			targetURL = todosURL
+		default:
 			writeAudit(auditPath, AuditLog{
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
+				Decision: "deny",
+				Reason:   []string{"unknown_tool"},
+				Status:   http.StatusBadRequest,
+			})
+			http.Error(w, "unknown tool", http.StatusBadRequest)
+			return
+		}
+
+		// ---------- Relay to backend ----------
+		// Egress deny-by-default: ensure targetURL is allowlisted
+		if !egCfg.IsAllowed(targetURL) {
+			writeAudit(auditPath, AuditLog{
+				TraceID:  traceID,
+				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
+				Caller:   caller,
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   []string{"egress_denied"},
 				Status:   http.StatusForbidden,
@@ -169,13 +255,13 @@ func main() {
 			return
 		}
 
-		req, err := http.NewRequest(http.MethodPost, backendURL, bytes.NewReader(body))
+		req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(payloadBytes))
 		if err != nil {
 			writeAudit(auditPath, AuditLog{
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   []string{"failed to build backend request"},
 				Status:   http.StatusInternalServerError,
@@ -183,7 +269,7 @@ func main() {
 			http.Error(w, "failed to build backend request", http.StatusInternalServerError)
 			return
 		}
-		ct := r.Header.Get("Content-Type")
+		ct = r.Header.Get("Content-Type")
 		if ct == "" {
 			ct = "application/json"
 		}
@@ -196,7 +282,7 @@ func main() {
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   []string{"backend error"},
 				Status:   http.StatusBadGateway,
@@ -212,7 +298,7 @@ func main() {
 				TraceID:  traceID,
 				Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 				Caller:   caller,
-				Tool:     "echo",
+				Tool:     resolvedTool,
 				Decision: "deny",
 				Reason:   []string{"failed to read backend response"},
 				Status:   http.StatusBadGateway,
@@ -226,7 +312,7 @@ func main() {
 			TraceID:  traceID,
 			Ts:       time.Now().UTC().Format(time.RFC3339Nano),
 			Caller:   caller,
-			Tool:     "echo",
+			Tool:     resolvedTool,
 			Decision: "allow",
 			Status:   resp.StatusCode,
 		})
@@ -261,36 +347,36 @@ func getenv(key, def string) string {
 }
 
 // checkOPA calls the OPA data API and returns (allowed, reasons)
-func checkOPA(opaURL, caller, tool string, timeout time.Duration, traceID string, pocaVerified bool) (bool, []string) {
-	input := map[string]any{
-		"input": map[string]any{
-			"caller":        caller,
-			"tool":          tool,
-			"trace_id":      traceID,
-			"poca_verified": pocaVerified,
-		},
-	}
-	b, _ := json.Marshal(input)
+func checkOPA(opaURL, caller, tool string, timeout time.Duration, traceID string, pocaVerified bool, schemaID string) (bool, []string) {
+    input := map[string]any{
+        "input": map[string]any{
+            "caller":        caller,
+            "tool":          tool,
+            "trace_id":      traceID,
+            "poca_verified": pocaVerified,
+            "schema_id":     schemaID,    // <<—— add this
+        },
+    }
+    b, _ := json.Marshal(input)
 
-	client := &http.Client{Timeout: timeout}
-	resp, err := client.Post(opaURL, "application/json", bytes.NewReader(b))
-	if err != nil {
-		// Fail closed on OPA errors
-		return false, []string{"opa_unreachable"}
-	}
-	defer resp.Body.Close()
+    client := &http.Client{Timeout: timeout}
+    resp, err := client.Post(opaURL, "application/json", bytes.NewReader(b))
+    if err != nil {
+        return false, []string{"opa_unreachable"}
+    }
+    defer resp.Body.Close()
 
-	var out struct {
-		Result struct {
-			Allow  bool     `json:"allow"`
-			Reason []string `json:"reason"`
-		} `json:"result"`
-	}
-	body, _ := io.ReadAll(resp.Body)
-	if err := json.Unmarshal(body, &out); err != nil {
-		return false, []string{"opa_bad_response"}
-	}
-	return out.Result.Allow, out.Result.Reason
+    var out struct {
+        Result struct {
+            Allow  bool     `json:"allow"`
+            Reason []string `json:"reason"`
+        } `json:"result"`
+    }
+    body, _ := io.ReadAll(resp.Body)
+    if err := json.Unmarshal(body, &out); err != nil {
+        return false, []string{"opa_bad_response"}
+    }
+    return out.Result.Allow, out.Result.Reason
 }
 
 // newTraceID returns a 16-byte hex string

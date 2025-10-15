@@ -2,3 +2,6 @@ default: deny
 allow:
   - name: echo
     url: http://echo:8081/echo
+  - name: todos
+    url: http://todos:8082/call
+    

@@ -8,6 +8,8 @@ It sits between an agent (client) and backend tools (an “echo” tool for now)
 
 ## Workflow
 
+### A) With Contract (X-Contract-ID: echo.v1)
+
 ```mermaid
 sequenceDiagram
   participant Agent as Agent (client)
@@ -15,69 +17,142 @@ sequenceDiagram
   participant OPA as OPA (PDP)
   participant Echo as Echo Tool (/echo)
 
-  Agent->>GW: HTTPS POST /relay (mTLS + PoCA headers + body)
-  GW->>GW: Verify client cert (mTLS)
-  GW->>GW: Verify PoCA (sig, payload hash, nonce, expiry)
-  alt PoCA fails
-    GW-->>Agent: 403 (forbidden by PoCA)
-  else PoCA ok
-    GW->>OPA: /v1/data/mcp/authz {caller, tool, poca_verified}
-    alt OPA denies
-      GW-->>Agent: 403 (policy)
-    else OPA allows
-      GW->>Echo: POST /echo (timeout 5s)
-      Echo-->>GW: 200 + body
-      GW->>GW: Structured audit (trace_id, ts, decision, status)
-      GW-->>Agent: 200 + echoed body
-    end
-  end
+  Agent->>GW: POST /relay (mTLS, PoCA, X-Contract-ID: echo.v1, body)
+  GW->>GW: Verify mTLS + PoCA
+  GW->>GW: Validate JSON against echo.v1 schema
+  GW->>OPA: authz check (caller, tool, poca_verified, schema_id)
+  OPA-->>GW: allow
+  GW->>GW: Check egress allowlist (egress.yaml)
+  GW->>Echo: POST /echo (timeout 5s)
+  Echo-->>GW: 200 OK + echoed body
+  GW->>GW: Write structured audit log (trace_id, decision, status)
+  GW-->>Agent: 200 OK + echoed body
 ```
 
-## Components
-- Gateway (Go)
-- GET /healthz
-- POST /relay (PEP): mTLS client auth, PoCA verification, OPA query, body size cap (2 MiB), upstream timeout (5s), audit JSONL.
-- OPA (PDP)
-- Evaluates Rego policy on { caller, tool, poca_verified, trace_id }.
-- Echo Tool (Go)
-- /healthz, /echo (echoes JSON or text; 1 MiB cap, POST-only).
-- PoCA Signer (Go helper)
-- Emits X-PoCA-Manifest + X-PoCA-Signature for a given payload.
-- PKI / PoCA Keys
-- mTLS CA/server/client certs; Ed25519 public key(s) for PoCA verification.
-- Audit
-- Line-delimited JSON at logs/audit.jsonl + stdout.
+### B) Without Contract (no X-Contract-ID)
 
-## Repository layout
+```mermaid
+sequenceDiagram
+  participant Agent as Agent (client)
+  participant GW as Gateway (/relay)
+  participant OPA as OPA (PDP)
+  participant Echo as Echo Tool (/echo)
+
+  Agent->>GW: POST /relay (mTLS, PoCA, body)
+  GW->>GW: Verify mTLS + PoCA
+  GW->>OPA: authz check (caller, tool, poca_verified)
+  OPA-->>GW: allow
+  GW->>GW: Check egress allowlist (egress.yaml)
+  GW->>Echo: POST /echo (timeout 5s)
+  Echo-->>GW: 200 OK + echoed body
+  GW->>GW: Write structured audit log (trace_id, decision, status)
+  GW-->>Agent: 200 OK + echoed body
+```
+
+## Components 
+
+```mermaid
+flowchart TD
+  subgraph Client
+    AG[Agent client]
+    PS[PoCA Signer helper<br/>emits X-PoCA-Manifest + X-PoCA-Signature]
+  end
+
+  subgraph Gateway
+    GW[Gateway /relay<br/>mTLS client auth, PoCA verify, OPA authz<br/>body cap: 2 MiB, upstream timeout: 5s]
+    HZ[GET /healthz]
+    AUD[Audit JSONL<br/>logs/audit.jsonl + stdout]
+  end
+
+  subgraph Policy
+    OPA[OPA PDP<br/>/v1/data/mcp/authz]
+    REGO[Rego policy: policy/mcp/authz.rego]
+  end
+
+  subgraph Tools
+    ECHO[Echo Tool /echo<br/>POST-only, 1 MiB cap]
+    EH[GET /healthz]
+  end
+
+  subgraph Keys &amp; PKI
+    MTLS[mTLS certs: CA / server / client]
+    ED[Ed25519 pubkeys pki/agents.yaml]
+  end
+
+  PS -- headers --> AG
+  AG -- mTLS + PoCA --> GW
+  GW -- policy query --> OPA
+  OPA -- allow/deny --> GW
+  GW -- forward --> ECHO
+  ECHO -- response --> GW
+  GW -- append --> AUD
+  MTLS -. verify client .-> GW
+  ED -. verify PoCA .-> GW
+  REGO -. evaluated by .-> OPA
+```
+
+## Error reference (403 vs 422)
+
+**403 Forbidden** — the request is **not authorized** to proceed.
+- **forbidden by PoCA**: PoCA verification failed (bad signature, expired manifest, nonce replay, or payload hash mismatch).
+- **policy**: OPA authorization denied the action for this caller/tool/context.
+- **egress denied**: target service not on the allowlist (see `egress.yaml`).
+
+Audit examples:
+```json
+{"decision":"deny","status":403,"reason":["forbidden_by_poca"],"caller":"agent","tool":"echo"}
+{"decision":"deny","status":403,"reason":["policy"],"caller":"agent","tool":"echo"}
+{"decision":"deny","status":403,"reason":["egress_denied"],"caller":"agent","tool":"echo"}
+```
+
+**422 Unprocessable Entity** — the request is **syntactically valid** but **fails contract checks**.
+- **json_parse_error**: `Content-Type: application/json` but body is not valid JSON.
+- **schema_request_invalid**: JSON does not match the declared contract (e.g., missing required fields) when `X-Contract-ID: echo.v1` is set.
+
+Audit examples:
+```json
+{"decision":"deny","status":422,"reason":["json_parse_error","schema_request_invalid"],"caller":"agent","tool":"echo"}
+{"decision":"deny","status":422,"reason":["schema_request_invalid"],"caller":"agent","tool":"echo"}
+```
+
+**Tip:** 403 = *who/where not allowed* (identity, policy, egress). 422 = *what not acceptable* (payload/contract).
+
 
 ```
 zt-sanctum/
 ├─ cmd/
 │  └─ gateway/
-│     └─ main.go                # mTLS, PoCA verify, OPA call, limits, audit
+│     └─ main.go                # mTLS, PoCA verify, OPA call, limits, audit, contract-aware schema check
+├─ contracts/
+│  └─ echo.v1.schema.json       # JSON-Schema for echo tool
 ├─ internal/
 │  ├─ poca/
-│  │  └─ verify.go             # PoCA manifest/nonce/sig/exp verification
+│  │  └─ verify.go              # PoCA manifest/nonce/sig/exp verification
 │  └─ pki/
-│     └─ load.go               # agents.yaml loader (Ed25519 pubkeys)
-├─ tools/
-│  ├─ echo/
-│  │  ├─ main.go               # /healthz, /echo
-│  │  └─ Dockerfile
-│  └─ poca_sign/
-│     └─ main.go               # emits PoCA headers for a payload
+│     └─ load.go                # agents.yaml loader (Ed25519 pubkeys)
 ├─ policy/
 │  └─ mcp/
-│     └─ authz.rego            # OPA v1 syntax policy
+│     └─ authz.rego             # OPA v1 syntax policy
+├─ tools/
+│  ├─ echo/
+│  │  ├─ main.go                # /healthz, /echo
+│  │  └─ Dockerfile
+│  └─ poca_sign/
+│     └─ main.go                # emits PoCA headers for a payload
+├─ tests/
+│  └─ e2e.sh                    # end-to-end tests (PoCA, replay, schema, egress)
+├─ egress.yaml                  # outbound allowlist
 ├─ pki/
-│  ├─ agent.key                # Ed25519 private (local dev only)
-│  ├─ agent.pub                # Ed25519 public (PEM)
-│  └─ agents.yaml              # PoCA verifier pubkeys (base64url raw)
-├─ certs/                      # dev CA/server/client certs (gitignored)
-├─ logs/                       # audit.jsonl lives here
+│  ├─ agent.key                 # Ed25519 private (local dev only)
+│  ├─ agent.pub                 # Ed25519 public (PEM)
+│  └─ agents.yaml               # PoCA verifier pubkeys (base64url raw)
+├─ resources/
+│  └─ SanctumLogo.png
+├─ certs/                       # dev CA/server/client certs (gitignored)
+├─ logs/                        # audit.jsonl lives here
 ├─ Dockerfile.gateway
 ├─ docker-compose.yaml
-└─ README.md
+└─ readme.md
 ```
 
 ## Quickstart
@@ -214,10 +289,10 @@ POCA_REQUIRED	true	If true, reject requests without valid PoCA
 POCA_AGENTS_PATH	/app/pki/agents.yaml	Agents public keys mapping
 
 Volumes in docker-compose.yaml:
-- ./certs:/certs:ro
-- ./policy:/policy:ro
-- ./logs:/var/log/zt-gateway
-- ./pki:/app/pki:ro
+  - ./certs:/certs:ro                 # mTLS certs (CA, server, client)
+  - ./policy:/policy:ro               # OPA Rego policies
+  - ./logs:/var/log/zt-gateway        # structured JSONL audits
+  - ./pki:/app/pki:ro                 # Ed25519 pubkeys for PoCA agents
 
 ## Troubleshooting
 - 403 “forbidden by PoCA”:
@@ -242,15 +317,15 @@ Set platform: linux/arm64 for the opa service.
 Avoid adding comments to lines that end with \. Keep comments on separate lines.
 
 ## Roadmap 
-	1.	Egress allowlist (deny-by-default) — YAML of allowed upstreams (+ optional TLS pin/SPIFFE ID).
-	2.	Request JSON-Schema — validate input per tool; pass schema_id to OPA.
-	3.	Tamper-evident audit — add prev_hash and record_hash to chain entries.
-	4.	Router + tool registry — accept {tool, payload} envelope and route by tools.yaml.
-	5.	SPIFFE/SPIRE — replace static certs with workload SVIDs; use SPIFFE IDs in PoCA/OPA.
-	6.	Vault-backed secrets — broker short-lived creds server-side.
-	7.	Content trust — pin image digests now; later verify with Sigstore/Cosign.
-	8.	Observability — OpenTelemetry spans; Jaeger/Tempo in compose.
-	9.	DLP & prompt-injection guards — light regex masks; controlled response filters.
+- [x] Egress allowlist (deny-by-default) — YAML of allowed upstreams (+ optional TLS pin/SPIFFE ID).
+- [x] Request JSON-Schema — validate input per tool; pass schema_id to OPA.
+Tamper-evident audit — add prev_hash and record_hash to chain entries.
+Router + tool registry — accept {tool, payload} envelope and route by tools.yaml.
+SPIFFE/SPIRE — replace static certs with workload SVIDs; use SPIFFE IDs in PoCA/OPA.
+Vault-backed secrets — broker short-lived creds server-side.
+Content trust — pin image digests now; later verify with Sigstore/Cosign.
+Observability — OpenTelemetry spans; Jaeger/Tempo in compose.
+DLP & prompt-injection guards — light regex masks; controlled response filters.
 
 ## Disclaimer
 

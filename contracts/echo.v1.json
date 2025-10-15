@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "echo.v1",
+  "type": "object",
+  "properties": {
+    "message": { "type": "string" }
+  },
+  "required": ["message"],
+  "additionalProperties": false
+}
